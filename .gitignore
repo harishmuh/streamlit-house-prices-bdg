@@ -1,3 +1,25 @@
+# some files to ignore
+cache
+catboost_info
+Clean Data Housing Kota Bandung.csv
+Data_Housing_Cleaning.ipynb
+dataset_house_price_bandung.csv
+eda_housing.ipynb
+housing_price_prediction_bandung_all.ipynb
+land_price_ xproperti.xlsx
+list_district_sub_district.xlsx
+ML_house_price_bandung copy.ipynb
+ML_house_price_bandung.ipynb
+Preprocessing and Modelling.ipynb
+raw_data_duplicate_removed_not_csv.xlsx
+raw_data_not_csv.xlsx
+readme_hm.txt
+test.ipynb
+Untitled.ipynb
+Untitled1.ipynb
+.ipynb_checkpoints
+requirements.txt
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
