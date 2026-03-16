@@ -188,4 +188,4 @@ if st.sidebar.button("Predict Price"):
 # ==========================================================
 
 with st.expander("Debug Input Data"):
-    st.write(input_df.columns)
+    st.write(input_df)
