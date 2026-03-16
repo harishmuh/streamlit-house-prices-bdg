@@ -1,13 +1,12 @@
+
 import streamlit as st
 import pandas as pd
 import joblib
 from sklearn.base import BaseEstimator, TransformerMixin
 
-
 # ==========================================================
-# 1. CUSTOM TRANSFORMER 
+# CUSTOM TRANSFORMER REQUIRED FOR UNPICKLING
 # ==========================================================
-# REQUIRED FOR PICKLE
 
 class HandlingOutliers(BaseEstimator, TransformerMixin):
 
@@ -42,19 +41,19 @@ class HandlingOutliers(BaseEstimator, TransformerMixin):
 
 
 # ==========================================================
-# 2. PAGE CONFIG
+# STREAMLIT PAGE CONFIG
 # ==========================================================
 
 st.set_page_config(
-    page_title="Bandung House Price Prediction",
+    page_title="Bandung House Price Predictor",
     layout="centered"
 )
 
-st.title("🏡 Bandung House Price Predictor")
+st.title("🏡 House Price Prediction - Bandung")
 
 
 # ==========================================================
-# 3. LOAD MODEL (CACHED)
+# LOAD MODEL
 # ==========================================================
 
 @st.cache_resource
@@ -69,7 +68,7 @@ model = load_model()
 
 
 # ==========================================================
-# 4. USER INPUT
+# USER INPUT
 # ==========================================================
 
 st.sidebar.header("Property Features")
@@ -112,26 +111,60 @@ district = st.sidebar.selectbox(
 
 
 # ==========================================================
-# 5. CREATE INPUT DATAFRAME
+# DISTRICT GRADE MAPPING
+# ==========================================================
+
+def map_district_grade(district):
+
+    district_1 = ["Arcamanik","Cinambo","Cibiru","Panyileukan","Ujungberung"]
+
+    district_2 = ["Antapani","Mandalajati","Kiaracondong","Gedebage"]
+
+    district_3 = ["Batununggal","Lengkong","Regol","Buahbatu","Rancasari"]
+
+    district_4 = ["Coblong","Cidadap","Sukasari","Sukajadi"]
+
+    district_5 = [
+        "Andir","Cicendo","Astana Anyar","Babakan Ciparay",
+        "Bojongloa Kaler","Bojongloa Kidul",
+        "Bandung Kulon","Bandung Kidul","Bandung Wetan"
+    ]
+
+    if district in district_1:
+        return 1
+    elif district in district_2:
+        return 2
+    elif district in district_3:
+        return 3
+    elif district in district_4:
+        return 4
+    else:
+        return 5
+
+
+# ==========================================================
+# BUILD INPUT DATAFRAME
 # ==========================================================
 
 def build_input_dataframe():
 
-    data = pd.DataFrame({
-        "LB": [LB],
-        "LT": [LT],
-        "KT": [KT],
-        "District": [district]
+    grade = map_district_grade(district)
+
+    df = pd.DataFrame({
+        "Building Area": [LB],
+        "Land Area": [LT],
+        "Bedrooms": [KT],
+        "Districts": [grade]
     })
 
-    return data
+    return df
 
 
 input_df = build_input_dataframe()
 
 
 # ==========================================================
-# 6. PREDICTION
+# PREDICTION
 # ==========================================================
 
 if st.sidebar.button("Predict Price"):
@@ -151,8 +184,9 @@ if st.sidebar.button("Predict Price"):
 
 
 # ==========================================================
-# 7. DEBUG (Optional)
+# DEBUG PANEL (Optional but useful)
 # ==========================================================
 
 with st.expander("Debug Input Data"):
     st.write(input_df)
+```
