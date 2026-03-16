@@ -1,114 +1,66 @@
 import streamlit as st
 import pandas as pd
-import pickle
+import joblib
+from sklearn.base import BaseEstimator, TransformerMixin
 
 
-st.set_page_config(page_title="Bandung House Price Predictor")
+# ==========================================================
+# 1. CUSTOM TRANSFORMER 
+# ==========================================================
+# REQUIRED FOR PICKLE
 
-st.title("House Price Prediction in Kota Bandung")
+class HandlingOutliers(BaseEstimator, TransformerMixin):
 
-st.write(
-    "Predict property price using a trained LightGBM regression model."
+    def __init__(self):
+        pass
+
+    def fit(self, X, y=None):
+        self.feature_names_in_ = X.columns
+        return self
+
+    def transform(self, X, y=None):
+
+        data = X.copy()
+
+        columns_to_process = ['LB', 'LT', 'KT']
+
+        for column in columns_to_process:
+
+            Q1 = data[column].quantile(0.25)
+            Q3 = data[column].quantile(0.75)
+            IQR = Q3 - Q1
+
+            lower_bound = Q1 - 1.5 * IQR
+            upper_bound = Q3 + 1.5 * IQR
+
+            data[column] = data[column].clip(
+                lower=lower_bound,
+                upper=upper_bound
+            )
+
+        return data
+
+
+# ==========================================================
+# 2. PAGE CONFIG
+# ==========================================================
+
+st.set_page_config(
+    page_title="Bandung House Price Prediction",
+    layout="centered"
 )
 
-
-# ---------------- USER INPUT ----------------
-
-st.sidebar.header("Property Features")
-
-LT = st.sidebar.number_input("Land Area (LT)", 1, 507, 100)
-LB = st.sidebar.number_input("Building Area (LB)", 1, 556, 150)
-KT = st.sidebar.slider("Bedrooms (KT)", 1, 8, 3)
-
-district = st.sidebar.selectbox(
-    "District",
-    [
-        "antapani","sukasari","cibeunying kidul","buahbatu","coblong",
-        "mandalajati","arcamanik","bojongloa kaler","rancasari",
-        "gedebage","cibeunying kaler","bandung kidul","kiaracondong",
-        "ujungberung","sukajadi","regol","cidadap","lengkong",
-        "cibiru","batununggal","cicendo","bandung kulon","andir",
-        "panyileukan","astana anyar","bojongloa kidul","bandung wetan",
-        "babakan ciparay","cinambo"
-    ]
-)
+st.title("🏡 Bandung House Price Predictor")
 
 
-# ---------------- DISTRICT GROUPING ----------------
-
-def map_district(d):
-
-    if d in [
-        "kiaracondong","arcamanik","cinambo","astana anyar",
-        "mandalajati","panyileukan","ujungberung","cibiru"
-    ]:
-        return "District1"
-
-    elif d in [
-        "babakan ciparay","buahbatu","rancasari",
-        "antapani","bojongloa kaler","bandung kulon"
-    ]:
-        return "District2"
-
-    elif d in [
-        "cibeunying kaler","batununggal",
-        "andir","cicendo","cibeunying kidul"
-    ]:
-        return "District3"
-
-    elif d in [
-        "bojongloa kidul","lengkong","regol",
-        "gedebage","sukajadi","bandung kidul","sukasari"
-    ]:
-        return "District4"
-
-    elif d in ["coblong","cidadap","bandung wetan"]:
-        return "District5"
-
-    return "District3"
-
-
-grade_district = map_district(district)
-
-
-# ---------------- CREATE MODEL INPUT ----------------
-
-def create_features(LB, LT, KT, grade):
-
-    df = pd.DataFrame({
-        "LB":[LB],
-        "LT":[LT],
-        "KT":[KT],
-        "District1":[0],
-        "District2":[0],
-        "District3":[0],
-        "District4":[0]
-    })
-
-    if grade == "District1":
-        df["District1"] = 1
-    elif grade == "District2":
-        df["District2"] = 1
-    elif grade == "District3":
-        df["District3"] = 1
-    elif grade == "District4":
-        df["District4"] = 1
-
-    return df
-
-
-data_property = create_features(LB, LT, KT, grade_district)
-
-
-# ---------------- LOAD MODEL ----------------
+# ==========================================================
+# 3. LOAD MODEL (CACHED)
+# ==========================================================
 
 @st.cache_resource
 def load_model():
 
-    with open("best_model_lgbm.sav", "rb") as f:
-        pipeline = pickle.load(f)
-
-    model = pipeline.steps[-1][1]   # extract LightGBM estimator
+    model = joblib.load("best_model_lgbm.sav")
 
     return model
 
@@ -116,21 +68,91 @@ def load_model():
 model = load_model()
 
 
-# ---------------- PREDICTION ----------------
+# ==========================================================
+# 4. USER INPUT
+# ==========================================================
+
+st.sidebar.header("Property Features")
+
+LB = st.sidebar.number_input(
+    "Building Area (LB)",
+    min_value=20,
+    max_value=1000,
+    value=120
+)
+
+LT = st.sidebar.number_input(
+    "Land Area (LT)",
+    min_value=20,
+    max_value=1000,
+    value=150
+)
+
+KT = st.sidebar.slider(
+    "Bedrooms (KT)",
+    1,
+    10,
+    3
+)
+
+district = st.sidebar.selectbox(
+    "District",
+    [
+        "Antapani","Arcamanik","Andir","Astana Anyar",
+        "Babakan Ciparay","Bandung Kidul","Bandung Kulon",
+        "Bandung Wetan","Batununggal","Bojongloa Kaler",
+        "Bojongloa Kidul","Buahbatu","Cibeunying Kidul",
+        "Cibeunying Kaler","Cibiru","Cicendo","Cidadap",
+        "Cinambo","Coblong","Gedebage","Kiaracondong",
+        "Lengkong","Mandalajati","Panyileukan",
+        "Rancasari","Regol","Sukajadi","Sukasari",
+        "Ujungberung"
+    ]
+)
+
+
+# ==========================================================
+# 5. CREATE INPUT DATAFRAME
+# ==========================================================
+
+def build_input_dataframe():
+
+    data = pd.DataFrame({
+        "LB": [LB],
+        "LT": [LT],
+        "KT": [KT],
+        "District": [district]
+    })
+
+    return data
+
+
+input_df = build_input_dataframe()
+
+
+# ==========================================================
+# 6. PREDICTION
+# ==========================================================
 
 if st.sidebar.button("Predict Price"):
 
-    prediction = model.predict(data_property)[0]
+    try:
 
-    st.subheader("Prediction Result")
+        prediction = model.predict(input_df)[0]
 
-    st.markdown(
-        f"""
-        <div style="background-color:white;padding:20px;border-radius:10px">
-        <h2 style="color:black">
-        Predicted Property Price: Rp {prediction:,.2f}
-        </h2>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
+        st.subheader("Predicted House Price")
+
+        st.success(f"Rp {prediction:,.0f}")
+
+    except Exception as e:
+
+        st.error("Prediction failed.")
+        st.exception(e)
+
+
+# ==========================================================
+# 7. DEBUG (Optional)
+# ==========================================================
+
+with st.expander("Debug Input Data"):
+    st.write(input_df)
