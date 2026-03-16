@@ -2,76 +2,40 @@
 import streamlit as st
 import pandas as pd
 import joblib
-from sklearn.base import BaseEstimator, TransformerMixin
 
-
-# ==========================================================
-# Custom transformer required for loading the trained pipeline
-# ==========================================================
-
-class HandlingOutliers(BaseEstimator, TransformerMixin):
-
-    def __init__(self):
-        pass
-
-    def fit(self, X, y=None):
-        self.feature_names_in_ = X.columns
-        return self
-
-    def transform(self, X, y=None):
-
-        data = X.copy()
-
-        columns_to_process = ['LB', 'LT', 'KT']
-
-        for column in columns_to_process:
-
-            if column not in data.columns:
-                continue
-
-            Q1 = data[column].quantile(0.25)
-            Q3 = data[column].quantile(0.75)
-            IQR = Q3 - Q1
-
-            lower_bound = Q1 - 1.5 * IQR
-            upper_bound = Q3 + 1.5 * IQR
-
-            data[column] = data[column].clip(
-                lower=lower_bound,
-                upper=upper_bound
-            )
-
-        return data
-
-
-# ==========================================================
-# Page config
-# ==========================================================
+# ----------------------------------------------------------
+# Page configuration
+# ----------------------------------------------------------
 
 st.set_page_config(
     page_title="Bandung House Price Predictor",
     layout="centered"
 )
 
-st.title("🏡 House Price Prediction — Bandung")
+st.title("🏡 Bandung House Price Prediction")
 
 
-# ==========================================================
-# Load trained model
-# ==========================================================
+# ----------------------------------------------------------
+# Load trained model (extract LightGBM only)
+# ----------------------------------------------------------
 
 @st.cache_resource
 def load_model():
-    model = joblib.load("best_model_lgbm.sav")
+
+    pipeline = joblib.load("best_model_lgbm.sav")
+
+    # last step of pipeline = trained LGBM model
+    model = pipeline.steps[-1][1]
+
     return model
 
 
 model = load_model()
 
 
-# ==========================================================
+# ----------------------------------------------------------
 # Sidebar input
-# ==========================================================
+# ----------------------------------------------------------
 
 st.sidebar.header("Property Features")
 
@@ -91,9 +55,9 @@ LT = st.sidebar.number_input(
 
 KT = st.sidebar.slider(
     "Bedrooms (KT)",
-    min_value=1,
-    max_value=10,
-    value=3
+    1,
+    10,
+    3
 )
 
 district = st.sidebar.selectbox(
@@ -112,75 +76,86 @@ district = st.sidebar.selectbox(
 )
 
 
-# ==========================================================
-# District grade mapping (categorical)
-# ==========================================================
+# ----------------------------------------------------------
+# District grouping (same logic used during training)
+# ----------------------------------------------------------
 
-def map_district_grade(district):
+def map_district(d):
 
     district_1 = ["Arcamanik","Cinambo","Cibiru","Panyileukan","Ujungberung"]
     district_2 = ["Antapani","Mandalajati","Kiaracondong","Gedebage"]
     district_3 = ["Batununggal","Lengkong","Regol","Buahbatu","Rancasari"]
     district_4 = ["Coblong","Cidadap","Sukasari","Sukajadi"]
 
-    if district in district_1:
+    if d in district_1:
         return "District1"
-    elif district in district_2:
+    elif d in district_2:
         return "District2"
-    elif district in district_3:
+    elif d in district_3:
         return "District3"
-    elif district in district_4:
+    elif d in district_4:
         return "District4"
     else:
         return "District5"
 
 
-# ==========================================================
-# Build input dataframe
-# ==========================================================
+grade = map_district(district)
 
-def build_input_dataframe():
 
-    grade = map_district_grade(district)
+# ----------------------------------------------------------
+# Create model input (manual encoding)
+# ----------------------------------------------------------
+
+def build_features():
 
     df = pd.DataFrame({
-        "LB": [float(LB)],
-        "LT": [float(LT)],
-        "KT": [int(KT)],
-        "grade_district": [grade]
+        "LB": [LB],
+        "LT": [LT],
+        "KT": [KT],
+        "District1": [0],
+        "District2": [0],
+        "District3": [0],
+        "District4": [0]
     })
+
+    if grade == "District1":
+        df["District1"] = 1
+    elif grade == "District2":
+        df["District2"] = 1
+    elif grade == "District3":
+        df["District3"] = 1
+    elif grade == "District4":
+        df["District4"] = 1
 
     return df
 
 
-input_df = build_input_dataframe()
+data_property = build_features()
 
 
-# ==========================================================
+# ----------------------------------------------------------
 # Prediction
-# ==========================================================
+# ----------------------------------------------------------
 
 if st.sidebar.button("Predict Price"):
 
     try:
 
-        prediction = model.predict(input_df)[0]
+        prediction = model.predict(data_property)[0]
 
         st.subheader("Predicted House Price")
         st.success(f"Rp {prediction:,.0f}")
 
     except Exception as e:
 
-        st.error("Prediction failed.")
+        st.error("Prediction failed")
         st.exception(e)
 
 
-# ==========================================================
+# ----------------------------------------------------------
 # Debug panel
-# ==========================================================
+# ----------------------------------------------------------
 
 with st.expander("Debug Input Data"):
-    st.write(input_df)
-    st.write("Column types:")
-    st.write(input_df.dtypes)
+    st.write(data_property)
 
