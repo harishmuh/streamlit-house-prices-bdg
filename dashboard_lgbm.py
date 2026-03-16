@@ -1,37 +1,7 @@
 import streamlit as st
 import pandas as pd
 import pickle
-from sklearn.base import BaseEstimator, TransformerMixin
 
-
-# ---------------- CUSTOM TRANSFORMER ----------------
-
-class HandlingOutliers(BaseEstimator, TransformerMixin):
-
-    def fit(self, X, y=None):
-        return self
-
-    def transform(self, X):
-
-        data = X.copy()
-        columns_to_process = ["LB", "LT", "KT"]
-
-        for column in columns_to_process:
-
-            Q1 = data[column].quantile(0.25)
-            Q3 = data[column].quantile(0.75)
-
-            IQR = Q3 - Q1
-
-            lower = Q1 - 1.5 * IQR
-            upper = Q3 + 1.5 * IQR
-
-            data[column] = data[column].clip(lower=lower, upper=upper)
-
-        return data
-
-
-# ---------------- STREAMLIT UI ----------------
 
 st.set_page_config(page_title="Bandung House Price Predictor")
 
@@ -50,7 +20,6 @@ LT = st.sidebar.number_input("Land Area (LT)", 1, 507, 100)
 LB = st.sidebar.number_input("Building Area (LB)", 1, 556, 150)
 KT = st.sidebar.slider("Bedrooms (KT)", 1, 8, 3)
 
-
 district = st.sidebar.selectbox(
     "District",
     [
@@ -67,45 +36,68 @@ district = st.sidebar.selectbox(
 
 # ---------------- DISTRICT GROUPING ----------------
 
-if district in [
-    "kiaracondong","arcamanik","cinambo","astana anyar",
-    "mandalajati","panyileukan","ujungberung","cibiru"
-]:
-    grade_district = "District1"
+def map_district(d):
 
-elif district in [
-    "babakan ciparay","buahbatu","rancasari",
-    "antapani","bojongloa kaler","bandung kulon"
-]:
-    grade_district = "District2"
+    if d in [
+        "kiaracondong","arcamanik","cinambo","astana anyar",
+        "mandalajati","panyileukan","ujungberung","cibiru"
+    ]:
+        return "District1"
 
-elif district in [
-    "cibeunying kaler","batununggal",
-    "andir","cicendo","cibeunying kidul"
-]:
-    grade_district = "District3"
+    elif d in [
+        "babakan ciparay","buahbatu","rancasari",
+        "antapani","bojongloa kaler","bandung kulon"
+    ]:
+        return "District2"
 
-elif district in [
-    "bojongloa kidul","lengkong","regol",
-    "gedebage","sukajadi","bandung kidul","sukasari"
-]:
-    grade_district = "District4"
+    elif d in [
+        "cibeunying kaler","batununggal",
+        "andir","cicendo","cibeunying kidul"
+    ]:
+        return "District3"
 
-elif district in ["coblong","cidadap","bandung wetan"]:
-    grade_district = "District5"
+    elif d in [
+        "bojongloa kidul","lengkong","regol",
+        "gedebage","sukajadi","bandung kidul","sukasari"
+    ]:
+        return "District4"
 
-else:
-    grade_district = "District3"
+    elif d in ["coblong","cidadap","bandung wetan"]:
+        return "District5"
+
+    return "District3"
 
 
-# ---------------- CREATE INPUT DATA ----------------
+grade_district = map_district(district)
 
-data_property = pd.DataFrame({
-    "LB": [LB],
-    "LT": [LT],
-    "KT": [KT],
-    "grade_district": [grade_district]
-})
+
+# ---------------- CREATE MODEL INPUT ----------------
+
+def create_features(LB, LT, KT, grade):
+
+    df = pd.DataFrame({
+        "LB":[LB],
+        "LT":[LT],
+        "KT":[KT],
+        "District1":[0],
+        "District2":[0],
+        "District3":[0],
+        "District4":[0]
+    })
+
+    if grade == "District1":
+        df["District1"] = 1
+    elif grade == "District2":
+        df["District2"] = 1
+    elif grade == "District3":
+        df["District3"] = 1
+    elif grade == "District4":
+        df["District4"] = 1
+
+    return df
+
+
+data_property = create_features(LB, LT, KT, grade_district)
 
 
 # ---------------- LOAD MODEL ----------------
@@ -114,7 +106,9 @@ data_property = pd.DataFrame({
 def load_model():
 
     with open("best_model_lgbm.sav", "rb") as f:
-        model = pickle.load(f)
+        pipeline = pickle.load(f)
+
+    model = pipeline.steps[-1][1]   # extract LightGBM estimator
 
     return model
 
