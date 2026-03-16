@@ -1,13 +1,10 @@
 import streamlit as st
 import pandas as pd
-import numpy as np
 import pickle
-
 from sklearn.base import BaseEstimator, TransformerMixin
 
 
-# ----------- CUSTOM TRANSFORMER -----------
-# for running pickle
+# ---------------- CUSTOM TRANSFORMER ----------------
 
 class HandlingOutliers(BaseEstimator, TransformerMixin):
 
@@ -15,8 +12,8 @@ class HandlingOutliers(BaseEstimator, TransformerMixin):
         return self
 
     def transform(self, X):
-        data = X.copy()
 
+        data = X.copy()
         columns_to_process = ["LB", "LT", "KT"]
 
         for column in columns_to_process:
@@ -26,32 +23,36 @@ class HandlingOutliers(BaseEstimator, TransformerMixin):
 
             IQR = Q3 - Q1
 
-            lower_bound = Q1 - 1.5 * IQR
-            upper_bound = Q3 + 1.5 * IQR
+            lower = Q1 - 1.5 * IQR
+            upper = Q3 + 1.5 * IQR
 
-            data[column] = data[column].clip(lower=lower_bound, upper=upper_bound)
+            data[column] = data[column].clip(lower=lower, upper=upper)
 
         return data
 
 
-# ----------- STREAMLIT UI -----------
+# ---------------- STREAMLIT UI ----------------
+
+st.set_page_config(page_title="Bandung House Price Predictor")
 
 st.title("House Price Prediction in Kota Bandung")
 
 st.write(
-    "This app predicts house prices based on property characteristics using machine learning."
+    "Predict property price using a trained LightGBM regression model."
 )
 
-st.sidebar.header("Please input Property Features")
 
+# ---------------- USER INPUT ----------------
+
+st.sidebar.header("Property Features")
 
 LT = st.sidebar.number_input("Land Area (LT)", 1, 507, 100)
 LB = st.sidebar.number_input("Building Area (LB)", 1, 556, 150)
-KT = st.sidebar.slider("Number of Bedrooms (KT)", 1, 8, 3)
+KT = st.sidebar.slider("Bedrooms (KT)", 1, 8, 3)
 
 
 district = st.sidebar.selectbox(
-    "Choose District",
+    "District",
     [
         "antapani","sukasari","cibeunying kidul","buahbatu","coblong",
         "mandalajati","arcamanik","bojongloa kaler","rancasari",
@@ -64,7 +65,7 @@ district = st.sidebar.selectbox(
 )
 
 
-# ----------- DISTRICT GROUPING -----------
+# ---------------- DISTRICT GROUPING ----------------
 
 if district in [
     "kiaracondong","arcamanik","cinambo","astana anyar",
@@ -97,7 +98,7 @@ else:
     grade_district = "District3"
 
 
-# ----------- CREATE DATAFRAME -----------
+# ---------------- CREATE INPUT DATA ----------------
 
 data_property = pd.DataFrame({
     "LB": [LB],
@@ -107,25 +108,21 @@ data_property = pd.DataFrame({
 })
 
 
-# encode categorical for LightGBM
-data_property["grade_district"] = (
-    data_property["grade_district"]
-    .astype("category")
-    .cat.codes
-)
+# ---------------- LOAD MODEL ----------------
+
+@st.cache_resource
+def load_model():
+
+    with open("best_model_lgbm.sav", "rb") as f:
+        model = pickle.load(f)
+
+    return model
 
 
-# ----------- LOAD MODEL -----------
-
-with open("best_model_lgbm.sav", "rb") as f:
-    model_loaded = pickle.load(f)
+model = load_model()
 
 
-# use final estimator
-model = model_loaded.steps[-1][1]
-
-
-# ----------- PREDICT -----------
+# ---------------- PREDICTION ----------------
 
 if st.sidebar.button("Predict Price"):
 
