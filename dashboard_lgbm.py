@@ -151,10 +151,10 @@ def build_input_dataframe():
     grade = map_district_grade(district)
 
     df = pd.DataFrame({
-        "Building Area": [LB],
-        "Land Area": [LT],
-        "Bedrooms": [KT],
-        "Districts": [grade]
+        "LB": [LB],
+        "LT": [LT],
+        "KT": [KT],
+        "grade_district": [grade]
     })
 
     return df
@@ -188,4 +188,4 @@ if st.sidebar.button("Predict Price"):
 # ==========================================================
 
 with st.expander("Debug Input Data"):
-    st.write(input_df)
+    st.write(input_df.columns)
