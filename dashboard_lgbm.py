@@ -131,7 +131,10 @@ for i, step in enumerate(model_loaded.steps):
         model_loaded.steps[i] = (name, None)
 
 # Prediksi menggunakan model regresi yang telah dimuat
-predicted_price = model_loaded.predict(data_property)[0]
+# predicted_price = model_loaded.predict(data_property)[0]
+
+# Prediksi menggunakan model regresi yang telah dimuat
+predicted_price = model_loaded.steps[-1][1].predict(data_property)[0]
 
 # Tampilkan hasil prediksi
 st.subheader('Prediction Result:')
