@@ -158,4 +158,3 @@ if st.sidebar.button("Predict Price"):
 
 with st.expander("Debug Input Data"):
     st.write(data_property)
-
