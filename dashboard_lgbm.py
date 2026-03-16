@@ -117,9 +117,18 @@ class HandlingOutliers(BaseEstimator, TransformerMixin):
         return super().set_output(transform=transform)
 
 
-# Load Model
-with open('best_model_lgbm.sav', 'rb') as f:
+# # Load Model
+# with open('best_model_lgbm.sav', 'rb') as f:
+#     model_loaded = pickle.load(f)
+
+with open("best_model_lgbm.sav", "rb") as f:
     model_loaded = pickle.load(f)
+
+# repair pipeline if sklearn version mismatch breaks it
+for i, step in enumerate(model_loaded.steps):
+    name, transformer = step
+    if isinstance(transformer, str):
+        model_loaded.steps[i] = (name, None)
 
 # Prediksi menggunakan model regresi yang telah dimuat
 predicted_price = model_loaded.predict(data_property)[0]
