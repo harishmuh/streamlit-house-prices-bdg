@@ -4,8 +4,9 @@ import pandas as pd
 import joblib
 from sklearn.base import BaseEstimator, TransformerMixin
 
+
 # ==========================================================
-# CUSTOM TRANSFORMER REQUIRED FOR UNPICKLING
+# Custom transformer required for loading the trained pipeline
 # ==========================================================
 
 class HandlingOutliers(BaseEstimator, TransformerMixin):
@@ -25,6 +26,9 @@ class HandlingOutliers(BaseEstimator, TransformerMixin):
 
         for column in columns_to_process:
 
+            if column not in data.columns:
+                continue
+
             Q1 = data[column].quantile(0.25)
             Q3 = data[column].quantile(0.75)
             IQR = Q3 - Q1
@@ -41,7 +45,7 @@ class HandlingOutliers(BaseEstimator, TransformerMixin):
 
 
 # ==========================================================
-# STREAMLIT PAGE CONFIG
+# Page config
 # ==========================================================
 
 st.set_page_config(
@@ -49,18 +53,16 @@ st.set_page_config(
     layout="centered"
 )
 
-st.title("🏡 House Price Prediction - Bandung")
+st.title("🏡 House Price Prediction — Bandung")
 
 
 # ==========================================================
-# LOAD MODEL
+# Load trained model
 # ==========================================================
 
 @st.cache_resource
 def load_model():
-
     model = joblib.load("best_model_lgbm.sav")
-
     return model
 
 
@@ -68,7 +70,7 @@ model = load_model()
 
 
 # ==========================================================
-# USER INPUT
+# Sidebar input
 # ==========================================================
 
 st.sidebar.header("Property Features")
@@ -89,9 +91,9 @@ LT = st.sidebar.number_input(
 
 KT = st.sidebar.slider(
     "Bedrooms (KT)",
-    1,
-    10,
-    3
+    min_value=1,
+    max_value=10,
+    value=3
 )
 
 district = st.sidebar.selectbox(
@@ -111,39 +113,30 @@ district = st.sidebar.selectbox(
 
 
 # ==========================================================
-# DISTRICT GRADE MAPPING
+# District grade mapping (categorical)
 # ==========================================================
 
 def map_district_grade(district):
 
     district_1 = ["Arcamanik","Cinambo","Cibiru","Panyileukan","Ujungberung"]
-
     district_2 = ["Antapani","Mandalajati","Kiaracondong","Gedebage"]
-
     district_3 = ["Batununggal","Lengkong","Regol","Buahbatu","Rancasari"]
-
     district_4 = ["Coblong","Cidadap","Sukasari","Sukajadi"]
 
-    district_5 = [
-        "Andir","Cicendo","Astana Anyar","Babakan Ciparay",
-        "Bojongloa Kaler","Bojongloa Kidul",
-        "Bandung Kulon","Bandung Kidul","Bandung Wetan"
-    ]
-
     if district in district_1:
-        return 1
+        return "District1"
     elif district in district_2:
-        return 2
+        return "District2"
     elif district in district_3:
-        return 3
+        return "District3"
     elif district in district_4:
-        return 4
+        return "District4"
     else:
-        return 5
+        return "District5"
 
 
 # ==========================================================
-# BUILD INPUT DATAFRAME
+# Build input dataframe
 # ==========================================================
 
 def build_input_dataframe():
@@ -151,9 +144,9 @@ def build_input_dataframe():
     grade = map_district_grade(district)
 
     df = pd.DataFrame({
-        "LB": [LB],
-        "LT": [LT],
-        "KT": [KT],
+        "LB": [float(LB)],
+        "LT": [float(LT)],
+        "KT": [int(KT)],
         "grade_district": [grade]
     })
 
@@ -164,7 +157,7 @@ input_df = build_input_dataframe()
 
 
 # ==========================================================
-# PREDICTION
+# Prediction
 # ==========================================================
 
 if st.sidebar.button("Predict Price"):
@@ -174,7 +167,6 @@ if st.sidebar.button("Predict Price"):
         prediction = model.predict(input_df)[0]
 
         st.subheader("Predicted House Price")
-
         st.success(f"Rp {prediction:,.0f}")
 
     except Exception as e:
@@ -184,8 +176,11 @@ if st.sidebar.button("Predict Price"):
 
 
 # ==========================================================
-# DEBUG PANEL (Optional but useful)
+# Debug panel
 # ==========================================================
 
 with st.expander("Debug Input Data"):
     st.write(input_df)
+    st.write("Column types:")
+    st.write(input_df.dtypes)
+
